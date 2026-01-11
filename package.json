@@ -1,0 +1,12 @@
+{
+  "name": "m43-indexDB",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "@tsconfig/node-ts": "^23.6.2",
+    "@tsconfig/node20": "^20.1.8",
+    "prettier": "^3.7.4",
+    "typescript": "^5.9.3"
+  }
+}
