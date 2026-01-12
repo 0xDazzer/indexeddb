@@ -5,11 +5,9 @@ export const once = <TResult>(
   const { promise, resolve } = Promise.withResolvers<TResult>();
   const onEvent = (event: Event) => resolve(event as TResult);
 
-  eventTarget.addEventListener(eventName, onEvent);
+  eventTarget.addEventListener(eventName, onEvent, { once: true });
 
-  return promise.finally(() =>
-    eventTarget.removeEventListener(eventName, onEvent),
-  );
+  return promise;
 };
 
 export const on = <TResult>(
@@ -37,8 +35,8 @@ export const adaptRequest = <T>(request: IDBRequest<T>) => {
 
   const onSuccess = () => resolve(request.result);
 
-  request.addEventListener("error", onError);
-  request.addEventListener("success", onSuccess);
+  request.addEventListener("error", onError, { once: true });
+  request.addEventListener("success", onSuccess, { once: true });
 
   return promise.finally(() => {
     request.removeEventListener("error", onError);
