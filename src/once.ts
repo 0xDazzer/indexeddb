@@ -24,7 +24,7 @@ import { addListener, Cleanup, shouldListenError } from './listeners';
 
 export type OnceOptions = {
     signal?: AbortSignal;
-    errorEvent?: string;
+    errorEvent?: string; // default: 'error'; set to '' to disable
 };
 
 export function once<T extends Event = Event>(
@@ -36,36 +36,36 @@ export function once<T extends Event = Event>(
 
     if (signal?.aborted) return Promise.reject(signal.reason);
 
-    return new Promise<T>((resolve, reject) => {
-        let done = false;
+    const { promise, resolve, reject } = Promise.withResolvers<T>();
+    let done = false;
 
-        const finish = (fn: () => void) => {
-            if (done) return;
-            done = true;
-            cleanupAll();
-            fn();
-        };
+    const finish = (fn: () => void) => {
+        if (done) return;
+        done = true;
+        cleanupAll();
+        fn();
+    };
 
-        const cleanups: Cleanup[] = [];
-        const cleanupAll = () => {
-            for (const c of cleanups.splice(0)) c();
-        };
+    const cleanups: Cleanup[] = [];
+    const cleanupAll = () => {
+        for (const c of cleanups.splice(0)) c();
+    };
 
-        const onSuccess: EventListener = (e) => finish(() => resolve(e as T));
+    const onSuccess: EventListener = (e) => finish(() => resolve(e as T));
 
-        const onError: EventListener = (e) => finish(() => reject(e));
+    const onError: EventListener = (e) => finish(() => reject(e));
 
-        const onAbort: EventListener = () => finish(() => reject(signal!.reason));
+    const onAbort: EventListener = () => finish(() => reject(signal!.reason));
 
-        cleanups.push(addListener(target, type, onSuccess, { once: true }));
+    cleanups.push(addListener(target, type, onSuccess, { once: true }));
 
-        if (shouldListenError(errorEvent, type)) {
-            cleanups.push(addListener(target, errorEvent, onError, { once: true }));
-        }
+    if (shouldListenError(errorEvent, type)) {
+        cleanups.push(addListener(target, errorEvent, onError, { once: true }));
+    }
 
-        if (signal) {
-            cleanups.push(addListener(signal, 'abort', onAbort, { once: true }));
-        }
+    if (signal) {
+        cleanups.push(addListener(signal, 'abort', onAbort, { once: true }));
+    }
 
-    });
+    return promise;
 }
