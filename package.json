@@ -1,0 +1,19 @@
+{
+    "name": "indexeddb-tests",
+    "version": "1.0.0",
+    "description": "Tests for IndexedDB helper functions",
+    "type": "module",
+    "scripts": {
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "test:coverage": "jest --coverage",
+        "build": "tsc"
+    },
+    "devDependencies": {
+        "fake-indexeddb": "^6.2.5",
+        "eslint": "^8.57.1",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-prettier": "^5.5.3",
+        "prettier": "^3.6.2"
+    }
+}
