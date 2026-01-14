@@ -1,7 +1,7 @@
 function once<T extends Event>(
   eventTarget: EventTarget,
   eventName: string,
-  signal: AbortSignal | undefined = undefined
+  signal: AbortSignal | undefined
 ): Promise<T> {
   if (signal?.aborted) throw new Error("Operation aborted");
 
@@ -26,6 +26,23 @@ function once<T extends Event>(
   });
 }
 
-// function on<T>(eventTarget: EventTarget, eventName: string): AsyncIterator<T>;
+function on<T extends Event>(
+  eventTarget: EventTarget,
+  eventName: string,
+  signal: AbortSignal | undefined
+): AsyncIterable<T | Error> {
+  const asyncIterator = async function* () {
+    while (!signal?.aborted) {
+      try {
+        const event = await once<T>(eventTarget, eventName, signal);
+        yield event;
+      } catch (error) {
+        yield error as Error;
+      }
+    }
+  };
 
-export { once };
+  return asyncIterator();
+}
+
+export { once, on };
