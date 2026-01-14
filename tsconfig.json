@@ -1,6 +1,7 @@
 {
   "extends": ["@tsconfig/node20/tsconfig.json", "@tsconfig/node-ts/tsconfig.json"],
   "compilerOptions": {
-    "lib": ["es2024", "dom"]
+    "lib": ["es2024", "dom"],
+    "verbatimModuleSyntax": false,
   }
 }
