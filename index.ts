@@ -45,4 +45,20 @@ function on<T extends Event>(
   return asyncIterator();
 }
 
-export { once, on };
+async function adaptRequest<T>(request: IDBRequest): Promise<T> {
+  const controller = new AbortController();
+
+  try {
+    const result = await Promise.race([
+      once<Event>(request, "onsuccess", controller.signal),
+      once<Event>(request, "onerror", controller.signal),
+    ]);
+
+    if (result.type === "onsuccess") return request.result as T;
+    else throw request.error;
+  } finally {
+    controller.abort();
+  }
+}
+
+export { once, on, adaptRequest };
