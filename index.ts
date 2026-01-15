@@ -5,11 +5,11 @@ interface IOptions {
 function once<T extends Event>(
   eventTarget: EventTarget,
   eventName: string,
-  options: IOptions
+  options: IOptions = {}
 ): Promise<T> {
   const { signal } = options;
 
-  if (signal?.aborted) throw new Error("Operation aborted");
+  if (signal?.aborted) Promise.reject(new Error("Operation aborted"));
 
   return new Promise((resolve, reject) => {
     const removeListeners = () => {
@@ -32,25 +32,14 @@ function once<T extends Event>(
   });
 }
 
-function on<T extends Event>(
+async function* on<T extends Event>(
   eventTarget: EventTarget,
   eventName: string,
-  options: IOptions
-): AsyncIterable<T | Error> {
-  const asyncIterator = async function* () {
-    const { signal } = options;
-
-    while (!signal?.aborted) {
-      try {
-        const event = await once<T>(eventTarget, eventName, { signal });
-        yield event;
-      } catch (error) {
-        yield error as Error;
-      }
-    }
-  };
-
-  return asyncIterator();
+  options: IOptions = {}
+) {
+  while (true) {
+    yield await once<T>(eventTarget, eventName, options);
+  }
 }
 
 async function adaptRequest<T>(request: IDBRequest): Promise<T> {
