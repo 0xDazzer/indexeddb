@@ -1,6 +1,10 @@
 function on<T extends Event>(eventTarget: EventTarget, eventName: string): AsyncIterable<T> {
   const queue: T[] = [];
+  // Stores the resolve function when next() is called but no events are queued.
+  // When an event arrives, we call this to "wake up" the waiting next() call.
   let pendingResolve: ((result: IteratorResult<T>) => void) | null = null;
+  // Flag to indicate the iterator has been terminated (e.g., via break).
+  // Prevents further iteration after return() is called.
   let done = false;
 
   const handler = (event: Event) => {
