@@ -32,8 +32,8 @@ window.db = adoptDB(database);
 // await store.add({ name: 'Oscar', lastName: 'Martin', age: 36, city: 'Charlotte' });
 // await store.add({ name: 'Pam', lastName: 'Thompson', age: 24, city: 'San Francisco' });
 
-const tx = db.transaction('users', 'readonly');
-const store = tx.objectStore('users');
+// const tx = db.transaction('users', 'readonly');
+// const store = tx.objectStore('users');
 
 // const users = await store.getAll();
 // const user = await store.get(1);
@@ -49,10 +49,9 @@ const store = tx.objectStore('users');
 // const usersByAge = await index.getAll(query);
 // console.log('users by age', usersByAge);
 
-const iterable = store.openCursor();
-for await (const cursor of iterable) {
-  console.log('cursor key', cursor.value);
-  cursor.continue();
-}
-
+// const iterable = store.openCursor();
+// for await (const cursor of iterable) {
+//   console.log('cursor key', cursor.value);
+//   cursor.continue();
+// }
 

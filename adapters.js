@@ -10,7 +10,7 @@ const adoptRequest = (request) => {
 
 // TODO: implement event queue
 const adoptMultiRequest = (adapter) => async function* (request) {
-  const result = await adoptRequest(request);
+  let result = await adoptRequest(request);
   while (result) {
     yield adapter(result);
     result = await adoptRequest(request);
