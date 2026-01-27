@@ -1,4 +1,29 @@
 import { createAdapter } from './utils.js';
+import { EventIterator } from './eventTarget.js';
+
+class RequestIterator extends EventIterator {
+  #adapter = null;
+  constructor(request, adapter) {
+    super(request, 'success');
+    this.#adapter = adapter;
+  }
+
+  next() {
+    return super.next().then(({ done, value: event }) => {
+      if (done) {
+        return { done: true, value: undefined };
+      }
+      const value = event.target.result;
+      if (!value) {
+        return this.return();
+      }
+      return { 
+        done: false, 
+        value: this.#adapter ? this.#adapter(value) : value
+      };
+    });
+  }
+}
 
 const adoptRequest = (request) => {
   const { promise, resolve, reject } = Promise.withResolvers();
@@ -8,14 +33,11 @@ const adoptRequest = (request) => {
   return promise.finally(() => controller.abort());
 }
 
-// TODO: implement event queue
-const adoptMultiRequest = (adapter) => async function* (request) {
-  let result = await adoptRequest(request);
-  while (result) {
-    yield adapter(result);
-    result = await adoptRequest(request);
+const adoptMultiRequest = (adapter) => (request) => ({
+  [Symbol.asyncIterator]() {
+    return new RequestIterator(request, adapter);
   }
-}
+});
 
 const adoptCursor = createAdapter({
   delete: adoptRequest,

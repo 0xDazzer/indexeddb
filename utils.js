@@ -18,16 +18,18 @@ const createWrapper = (adaptee, schema = {}) => {
     const adapter = schema[prop];
     if (typeof adaptee[prop] === 'function') {
       methodDescriptors[prop] = adapter
-        ? createMethodDescriptor((...args) => adapter(adaptee[prop](...args)))
-        : createMethodDescriptor(adaptee[prop].bind(adaptee));
+        ? createMethodDescriptor(function(...args) { return adapter(this._adaptee[prop](...args)); })
+        : createMethodDescriptor(function(...args) { return this._adaptee[prop](...args); });
     } else {
       propertyDescriptors[prop] = adapter
-        ? createPropertyDescriptor(() => adapter(adaptee[prop]))
-        : createPropertyDescriptor(() => adaptee[prop]);
+        ? createPropertyDescriptor(function() { return adapter(this._adaptee[prop]); })
+        : createPropertyDescriptor(function() { return this._adaptee[prop]; });
     }
   }
   const Wrapper = class {
-    constructor() {
+    _adaptee = null;
+    constructor(adaptee) {
+      this._adaptee = adaptee;
       Object.defineProperties(this, propertyDescriptors);
     }
   };
