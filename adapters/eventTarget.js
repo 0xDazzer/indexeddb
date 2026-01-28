@@ -1,52 +1,31 @@
-class Queue {
-  #array = [];
-  constructor(defaultValue = []) {
-    this.#array = defaultValue;
-  }
-  enqueue(item) {
-    this.#array.push(item);
-  }
-  dequeue() {
-    return this.#array.shift();
-  }
-  get size() {
-    return this.#array.length;
-  }
-  [Symbol.iterator]() {
-    return {
-      next: () => this.size === 0
-        ? { value: undefined, done: true }
-        : { value: this.dequeue(), done: false }
-    };
-  }
-}
+import { Queue } from '../utils/queue.js';
 
 const DONE = { done: true, value: undefined };
 
-class EventIterator {
+class EventIterableIterator {
   #events = new Queue();
   #resolvers = new Queue();
+  #abortController = new AbortController();
   #done = false;
-  #abortController = null;
 
   constructor(emitter, eventName) {
-    this.#abortController = new AbortController();
-    const listener = (value) => {
+    const listener = (event) => {
       if (this.#resolvers.size > 0) {
         const { resolve } = this.#resolvers.dequeue();
-        resolve({ done: false, value });
+        resolve({ done: false, value: event });
       } else {
-        this.#events.enqueue({ type: eventName, value, error: null });
+        this.#events.enqueue(event);
       }
     };
-    const onerror = (error) => {
+    const onerror = (event) => {
       if (this.#resolvers.size > 0) {
         const { reject } = this.#resolvers.dequeue();
-        reject(error);
+        reject(event.target.error);
+        this.#finalize();
       } else {
-        this.#events.enqueue({ type: 'error', value: null, error });
+        this.#finalize();
+        this.#events.enqueue(event);
       }
-      this.#finalize();
     };
     emitter.addEventListener(eventName, listener, { signal: this.#abortController.signal });
     emitter.addEventListener('error', onerror, { signal: this.#abortController.signal });
@@ -56,8 +35,9 @@ class EventIterator {
     if (this.#done) return;
     this.#done = true;
     this.#abortController.abort();
-    for (const { resolve } of this.#resolvers) {
-      resolve(DONE);
+    this.#events.clear();
+    if (this.#resolvers.size > 0) {
+      for (const { resolve } of this.#resolvers) resolve(DONE);
     }
   }
 
@@ -65,9 +45,9 @@ class EventIterator {
     if (this.#events.size > 0) {
       const event = this.#events.dequeue();
       if (event.type === 'error') {
-        throw event.error;
+        throw event.target.error;
       }
-      return { done: false, value: event.value };
+      return { done: false, value: event };
     }
     if (this.#done) return DONE;
     return new Promise((resolve, reject) => {
@@ -84,13 +64,11 @@ class EventIterator {
     this.#finalize();
     return DONE;
   }
+
+  [Symbol.asyncIterator] = () => this
 }
 
-const on = (eventTarget, eventName) => ({
-  [Symbol.asyncIterator]() {
-    return new EventIterator(eventTarget, eventName);
-  }
-})
+const on = (eventTarget, eventName) => new EventIterableIterator(eventTarget, eventName);
 
 const once = (eventTarget, eventName) => {
   const { promise, resolve, reject } = Promise.withResolvers();
@@ -100,4 +78,4 @@ const once = (eventTarget, eventName) => {
   return promise.finally(() => controller.abort());
 }
 
-export { on, once, EventIterator };
+export { on, once, EventIterableIterator };
