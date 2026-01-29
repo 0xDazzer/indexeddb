@@ -31,38 +31,42 @@ class Queue { // Note: AI created
 
 const DONE = {done: true, value: undefined};
 
-const on = (eventTarget, eventName) => {
-  const controller = new AbortController();
+class IterableEventTarget {
+  constructor(eventTarget, eventName) {
+    this.controller = new AbortController();
+    this.nextCalls = new Queue();
+    this.events = new Queue();
 
-  const nextCalls = new Queue();
-  const events = new Queue();
+    eventTarget.addEventListener(eventName, event => {
+      this.events.enqueue(event);
+      this.processQueue();
+    }, {signal: this.controller.signal});
 
+    eventTarget.addEventListener('error', error => {
+      this.events.enqueue(error);
+      this.processQueue();
+    }, {signal: this.controller.signal});
+  }
 
-  eventTarget.addEventListener(eventName, event => {
-    events.enqueue({type: 'success', value: event});
-    processQueue();
-  }, {signal: controller.signal});
+  cleanup() {
+    this.controller.abort();
+    this.nextCalls.clear();
+    this.events.clear();
+  }
 
-  eventTarget.addEventListener('error', error => {
-    events.enqueue({type: 'error', value: error});
-    processQueue();
-  }, {signal: controller.signal});
-
-  const processQueue = () => {
-
-
+  processQueue() {
     // ❌ nextCalls:0 & events: 0 // impossible case (as `processQueue()` have to be called before enqueueing)
     // ❌ nextCalls:0 & events: n // events appears before next() calls
     // ❌ nextCalls:n & events: 0 // next() calls appears before events
     // ✅ nextCalls:n & events: m // normal case
-    if (nextCalls.size === 0 || events.size === 0) {
+    if (this.nextCalls.size === 0 || this.events.size === 0) {
       return;
     }
 
-    const nextCall = nextCalls.dequeue();
-    const event = events.dequeue();
+    const nextCall = this.nextCalls.dequeue();
+    const event = this.events.dequeue();
 
-    if (event.type === 'success') {
+    if (event.type !== 'error') {
       nextCall.resolve({done: false, value: event});
       return;
     }
@@ -70,94 +74,40 @@ const on = (eventTarget, eventName) => {
     // event.type === 'error'
     // Resolve all pending next calls with DONE
     let curNextCall;
-    while (curNextCall = nextCalls.dequeue()) {
+    while (curNextCall = this.nextCalls.dequeue()) {
       curNextCall.resolve(DONE);
     }
     // Reject the current next call with the error
-    nextCall.reject(event.value);
+    nextCall.reject(event);
     // Remove all remaining events and unsubscribe from events
-    cleanup();
+    this.cleanup();
   };
 
-  const cleanup = () => {
-    controller.abort();
-    nextCalls.clear();
-    events.clear();
-  }
-
-  const iterator = {
-    async next() {
-      const {promise, resolve, reject} = Promise.withResolvers();
-      nextCalls.enqueue({resolve, reject});
-      processQueue()
-      return promise;
-    },
-    async return() {
-      cleanup();
-      return DONE;
-    },
-    async throw(error) {
-      cleanup();
+  async next() {
+    if (this.controller.signal.aborted) {
       return DONE;
     }
-  };
+    const {promise, resolve, reject} = Promise.withResolvers();
+    this.nextCalls.enqueue({resolve, reject});
+    this.processQueue()
+    return promise;
+  }
 
-  return {
-    [Symbol.asyncIterator]() {
-      return iterator;
-    },
-  };
-};
+  async return() {
+    this.cleanup();
+    return DONE;
+  }
 
-// ------------------------------------------------------------------------------------
-// 1. Test for fast read with error
-// const delay  = ms => new Promise(ok => setTimeout(ok,ms));
-// const testEventTarget = new EventTarget();
-//
-// const NAME = 'valuechange';
-// const gen = on(testEventTarget, NAME)[Symbol.asyncIterator]();
-//
-// gen.next().then(v => console.log('1', v));
-// gen.next().then(v => console.log('2', v));
-// gen.next().then(v => console.log('3', v));
-// gen.next().then(v => console.log('4', v));
-// gen.next().then(v => console.log('5', v));
-// gen.next().then(v => console.log('6', v));
-// gen.next().then(v => console.log('7', v));
-// gen.next().then(v => console.log('8', v));
-//
-// let i = 0;
-// testEventTarget.dispatchEvent(new CustomEvent(NAME, {data: ++i}));
-// await delay(Math.random() * 1_000);
-// testEventTarget.dispatchEvent(new CustomEvent(NAME, {data: ++i}));
-// await delay(Math.random() * 1_000);
-// testEventTarget.dispatchEvent(new CustomEvent(NAME, {data: ++i}));
-// await delay(Math.random() * 1_000);
-// testEventTarget.dispatchEvent(new CustomEvent(NAME, {data: ++i}));
-// testEventTarget.dispatchEvent(new CustomEvent("error", new Error('ops')));
-// ------------------------------------------------------------------------------------
-// 2. Spec for comparison
-//
-// async function* MyFn(){
-//     yield 1;
-//     await  new Promise(ok => setTimeout(ok, Math.random() * 1_000))
-//     yield 2;
-//     await  new Promise(ok => setTimeout(ok, Math.random() * 1_000))
-//     yield 3;
-//     await  new Promise(ok => setTimeout(ok, Math.random() * 1_000))
-//     yield 4;
-//     qwerwwqr;
-//     yield 5;
-//     yield 6;
-//     yield 7;
-// }
+  async throw(error) {
+    this.cleanup();
+    return DONE;
+  }
 
-//  1 {value: 1, done: false}
-//  2 {value: 2, done: false}
-//  3 {value: 3, done: false}
-//  4 {value: 4, done: false} // 5 next() ??? (resolved with error)
-//  6 {value: undefined, done: true}
-//  7 {value: undefined, done: true}
-//  8 {value: undefined, done: true}
-//  Uncaught (in promise) ReferenceError: qwerwwqr is not defined
+  [Symbol.asyncIterator]() {
+    return this;
+  }
+}
 
+const on = (eventTarget, eventName) => new IterableEventTarget(eventTarget, eventName);
+
+module.exports = {on};
