@@ -1,4 +1,4 @@
-import { createAdapter } from './utils/createAdapter.js';
+import { createAdapter } from '../utils/createAdapter.js';
 import { adoptRequest, adoptMultiRequest } from './request.js';
 
 const adoptCursor = createAdapter({

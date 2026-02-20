@@ -1,4 +1,4 @@
-import { adoptDB, adoptRequest } from './adapters.js';
+import { adoptDB, adoptRequest } from './adapters/index.js';
 
 // Open the database
 const openRequest = indexedDB.open('test', 1);
@@ -12,25 +12,24 @@ openRequest.addEventListener('upgradeneeded', (event) => {
 const database = await adoptRequest(openRequest);
 window.db = adoptDB(database);
 
-const tx = database.transaction('users', 'readonly');
-const store = tx.objectStore('users');
+// const tx = database.transaction('users', 'readonly');
+// const store = tx.objectStore('users');
+// const request = store.openCursor();
 
-const request = store.openCursor();
-
-let startTime = null;
-let endTime = null;
-request.addEventListener('success', (event) => {
-  if(!startTime) { 
-    startTime = performance.now(); 
-  }
-  const cursor = event.target.result;
-  if (cursor) {
-    cursor.continue();
-  } else {
-    endTime = performance.now();
-    console.log(`Cursor iteration took ${endTime - startTime} ms`);
-  }
-});
+// let startTime = null;
+// let endTime = null;
+// request.addEventListener('success', (event) => {
+//   if(!startTime) { 
+//     startTime = performance.now(); 
+//   }
+//   const cursor = event.target.result;
+//   if (cursor) {
+//     cursor.continue();
+//   } else {
+//     endTime = performance.now();
+//     console.log(`Cursor iteration took ${endTime - startTime} ms`);
+//   }
+// });
 
 // // Add a record to the database
 // const tx = db.transaction(['users'], 'readwrite');
@@ -54,9 +53,6 @@ request.addEventListener('success', (event) => {
 //   await store.add({ name: 'Pam', lastName: 'Thompson', age: 24, city: 'San Francisco' });
 // }
 
-// const tx = db.transaction('users', 'readonly');
-// const store = tx.objectStore('users');
-
 // const timeStart = performance.now();
 // const users = await store.getAll();
 // console.log('all users', users);
@@ -76,12 +72,10 @@ request.addEventListener('success', (event) => {
 // const usersByAge = await index.getAll(query);
 // console.log('users by age', usersByAge);
 
-// const iterable = store.openCursor();
-// const timeStart = performance.now();
-// const arr = [];
-// for await (const cursor of iterable) {
-//   arr.push(cursor.value);
-//   cursor.continue();
-// }
-// const timeEnd = performance.now();
-// console.log(`Cursor iteration took ${timeEnd - timeStart} ms`);
+const tx = db.transaction('users', 'readonly');
+const store = tx.objectStore('users');
+const iterable = store.openCursor();
+for await (const cursor of iterable) {
+  console.log('cursor value:', cursor);
+  cursor.continue();
+}

@@ -2,7 +2,7 @@ import { Queue } from '../utils/queue.js';
 
 const DONE = { done: true, value: undefined };
 
-class EventIterableIterator {
+class EventIterator {
   #events = new Queue();
   #resolvers = new Queue();
   #abortController = new AbortController();
@@ -64,11 +64,11 @@ class EventIterableIterator {
     this.#finalize();
     return DONE;
   }
-
-  [Symbol.asyncIterator] = () => this
 }
 
-const on = (eventTarget, eventName) => new EventIterableIterator(eventTarget, eventName);
+const on = (eventTarget, eventName) => ({ 
+  [Symbol.asyncIterator]: () => new EventIterator(eventTarget, eventName)
+});
 
 const once = (eventTarget, eventName) => {
   const { promise, resolve, reject } = Promise.withResolvers();
@@ -78,4 +78,4 @@ const once = (eventTarget, eventName) => {
   return promise.finally(() => controller.abort());
 }
 
-export { on, once, EventIterableIterator };
+export { on, once, EventIterator };

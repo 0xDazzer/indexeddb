@@ -1,6 +1,6 @@
-import { EventIterableIterator } from './eventTarget.js';
+import { EventIterator } from './eventTarget.js';
 
-class RequestIterableIterator extends EventIterableIterator {
+class RequestIterator extends EventIterator {
   #adapter = null;
   constructor(request, adapter) {
     super(request, 'success');
@@ -31,8 +31,10 @@ const adoptRequest = (request) => {
   request.addEventListener('success', (e) => void resolve(e.target.result), { signal: controller.signal });
   request.addEventListener('error', (e) => void reject(e.target.error), { signal: controller.signal });
   return promise.finally(() => controller.abort());
-}
+} 
 
-const adoptMultiRequest = (adapter) => (request) => new RequestIterableIterator(request, adapter);
+const adoptMultiRequest = (adapter) => (request) => ({ 
+  [Symbol.asyncIterator]: () => new RequestIterator(request, adapter)
+});
 
 export { adoptMultiRequest, adoptRequest };
